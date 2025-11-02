@@ -1,35 +1,101 @@
-# Manual Setup Checklist
+# 手動セットアップ チェックリスト
 
-This checklist outlines the manual steps required after running the `init.sh` script.
+このチェックリストは、`init.sh` スクリプトを実行した後に必要な手動での設定手順をまとめたものです。
 
 ## Firebase
 
-- [ ] **Create a new Firebase project.**
-  - Go to the [Firebase Console](https://console.firebase.google.com/).
-  - Click "Add project" and follow the on-screen instructions.
+- [ ] **Firebaseプロジェクトを新規作成する**
+  - [Firebaseコンソール](https://console.firebase.google.com/) にアクセスします。
+  - 「プロジェクトを追加」をクリックし、画面の指示に従います。
 
-- [ ] **Download the `google-services.json` file and place it in the `app/` directory.**
-  - In your Firebase project settings, under the "General" tab, select your Android app.
-  - Click "google-services.json" to download the file.
-  - Move the downloaded file to the `app/` directory of your project.
+- [ ] **`google-services.json` ファイルをダウンロードし、`app/` ディレクトリに配置する**
+  - Firebaseプロジェクトの設定画面を開き、「全般」タブで対象のAndroidアプリを選択します。
+  - 「google-services.json」をクリックしてファイルをダウンロードします。
+  - ダウンロードしたファイルを、プロジェクトの `app/` ディレクトリに移動します。
+  - **注意:** このファイルは `.gitignore` によりバージョン管理から除外されています。各開発者はローカル環境にこのファイルを配置する必要があります。
 
-- [ ] **Create a tester group in Firebase App Tester.**
-  - In the Firebase Console, navigate to "App Distribution".
-  - Go to the "Testers & Groups" tab.
-  - Click "Add group" to create a new group and add testers to it.
+- [ ] **Firebase App Testerでテスターグループを作成する**
+  - Firebaseコンソールのメニューから「App Distribution」に移動します。
+  - 「テスターとグループ」タブを開きます。
+  - 「グループを追加」をクリックして新しいグループを作成し、テスターを追加します。
 
-## GitHub Repository Secrets
+## GitHubリポジトリのシークレット設定
 
-Navigate to your repository's `Settings > Secrets and variables > Actions` and add the following secrets:
+リポジトリの `Settings > Secrets and variables > Actions` を開き、以下のシークレットを追加します。
 
-- [ ] **`FIREBASE_TOKEN`**: The token obtained from the Firebase CLI.
-  - Run the following command in your terminal: `firebase login:ci`
-  - This will open a browser window to authenticate. After authentication, a token will be displayed in the terminal. Copy this token.
+- [ ] **`FIREBASE_APP_ID`**: Firebaseアプリの一意のID。
+  - Firebaseコンソールの `プロジェクト設定 > 全般 > マイアプリ` を開きます。
+  - 対象のAndroidアプリを選択し、**`アプリ ID`** (`1:1234...`のような形式) をコピーして、このシークレットの値として貼り付けます。これはテストアプリの自動配布に必要です。
 
-- [ ] **`SIGNING_KEY`**: The base64 encoded release signing key.
-  - If you don't have a signing key, generate one using `keytool`.
-  - Then, encode the key file to base64 using the following command: `base64 -w 0 your_key_name.jks`
-  - Copy the output.
+- [ ] **`FIREBASE_TOKEN`**: Firebase CLIから取得したトークン。
+  - ターミナルで次のコマンドを実行します: `firebase login:ci`
+  - ブラウザが開き、認証が求められます。認証後、ターミナルにトークンが表示されるので、それをコピーします。
 
-- [ ] **`KEY_PASSWORD`**: The password for the signing key.
-  - This is the password you set when you created the signing key.
+- [ ] **`SIGNING_KEY`**: Base64でエンコードされたリリース署名キー。
+  - 署名キーがない場合は、`keytool` を使って以下のコマンドで生成します。
+    ```bash
+    keytool -genkeypair -v -keystore release-key.jks -alias your-alias -keyalg RSA -keysize 2048 -validity 10000
+    ```
+  - **`keytool`実行時の注意点:**
+    - **パスワード入力:** 「キーストアのパスワードを入力してください:」と表示された後、パスワードを入力しても画面には何も表示されませんが、これは正常な動作です。入力後にEnterキーを押してください。
+    - **所有者情報:** 「姓名は何ですか。」などの質問には、開発者や会社の情報を入力します。これはリリース用キーの所有者情報となります。必須ではありませんが、入力が推奨されます。
+    - **最終確認:** 最後に `... is correct? [no]:` と表示されたら、**`yes` と入力してEnterキーを押す**ことで内容を確定できます。デフォルトの `[no]` のままEnterを押すとキャンセルされます。
+  - 次に、生成されたキーファイルをBase64にエンコードします。お使いのOSによってコマンドが異なります。
+    - **macOS / Linux の場合:**
+      ```bash
+      base64 -w 0 release-key.jks
+      ```
+      - このコマンドを実行すると、ターミナルに非常に長い文字列が出力されます。その文字列をすべてコピーします。
+    - **Windows (コマンドプロンプト) の場合:**
+      ```bash
+      certutil -encode release-key.jks temp_key.txt
+      ```
+      - このコマンドを実行すると、`temp_key.txt` というファイルが生成されます。
+      - このファイルをメモ帳などで開き、`-----BEGIN CERTIFICATE-----` と `-----END CERTIFICATE-----` の**間にある文字列だけ**をすべてコピーします。
+  - コピーした長い文字列を、GitHubのシークレットに設定します。
+
+- [ ] **`KEY_PASSWORD`**: 署名キーのパスワード。
+  - 署名キーを作成した際に設定したパスワードです。
+
+- [ ] **`KEY_STORE_PASSWORD`**: キーストアファイルのパスワード。
+  - 署名キー（`.jks`ファイル）自体のパスワードです。
+
+- [ ] **`KEY_ALIAS`**: キーストア内にあるキーのエイリアス。
+  - キー生成時に `-alias` フラグで指定した名前です。
+
+- [ ] **`GOOGLE_SERVICES_JSON`**: `google-services.json` ファイルの全内容。
+  - セキュリティのため、このファイルはリポジトリにコミットされません。
+  - ローカルの `app/google-services.json` ファイルを開き、その内容をすべてコピーして、このシークレットの値として貼り付けます。CI/CD実行時に、このシークレットからファイルが動的に生成されます。
+
+## GitHub Issuesの自動作成
+
+このリポジトリでは、セットアップを円滑に進めるため、必要なタスクをまとめたGitHub Issuesが自動的に作成されることがあります。
+
+もし、これらのIssuesが誤って削除されたり、自動作成が失敗した場合は、**GitHubのIssueまたはPull Requestのコメント欄に**以下のコマンドを書き込むことで、手動で再作成をトリガーできます。
+
+**コマンドトリガー (GitHubコメント用):**
+```
+/create-initial-issues
+```
+
+## 最終確認
+
+- [ ] **Firebaseコンソールでパッケージ名を確認・更新する**
+  - Firebaseコンソールで `プロジェクト設定 > 全般 > マイアプリ` を開きます。
+  - 対象のAndroidアプリを選択し、**パッケージ名**が `app/build.gradle.kts` の `applicationId` (`com.gws.auto.mobile.android`) と一致していることを確認します。
+  - **【重要】** もし一致していなければ、Firebaseコンソールのパッケージ名を更新し、新しい `google-services.json` を再ダウンロードしてローカルに配置し、さらに `GOOGLE_SERVICES_JSON` シークレットも更新してください。
+
+- [ ] **Gradleの同期を実行する**
+  - Android Studioで `File > Sync Project with Gradle Files` をクリックし、すべての設定が正しく読み込まれることを確認します。
+
+- [ ] **リリースビルドを生成する**
+  - **ローカルPCのターミナルで**以下のコマンドを実行し、署名設定が正しく機能するかを確認します。
+    - **macOS / Linux の場合:**
+      ```bash
+      ./gradlew assembleRelease
+      ```
+    - **Windows (コマンドプロンプト) の場合:**
+      ```bash
+      gradlew.bat assembleRelease
+      ```
+  - これが成功すれば、CI/CDのための設定が正しく行われていることが確認できます。
