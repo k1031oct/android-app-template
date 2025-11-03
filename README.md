@@ -5,6 +5,26 @@
 このリポジトリは、複数のAndroidアプリケーションを効率的に構築するための雛形（テンプレート）です。
 このテンプレートを使用することで、以下の5ステップからなる効率的な開発サイクルを確立します。
 
+## 計画とIssue管理
+
+本テンプレートには、開発計画とリリース計画を効率的に管理し、GitHub Issuesと連携させるための仕組みが含まれています。
+
+### 開発計画 (`DEVELOPMENT_PLAN.md`)
+
+`DEVELOPMENT_PLAN.template.md` をコピーして `DEVELOPMENT_PLAN.md` を作成し、開発計画をフェーズごとに記述します。
+
+-   **フォーマット:** `### フェーズX:` という見出しでフェーズを区切り、`- [ ] **Task:** タスク内容` の形式でタスクをリストアップします。
+-   **Issue生成:** GitHub Actionsの `Generate Issues from Plan` ワークフローを手動で実行すると、指定したフェーズのタスクが自動的にIssueとして起票されます。
+    -   タスクに `(frontend)` と含めると、`frontend` ラベルが自動で付与されます。
+
+### リリース計画 (`RELEASE_PLAN.md`)
+
+`RELEASE_PLAN.template.md` をコピーして `RELEASE_PLAN.md` を作成し、リリースごとのタスクを階層的に記述します。
+
+-   **フォーマット:** 親タスクとサブタスクをインデントで区別して記述します。
+-   **Issue生成:** GitHub Actionsの `Create Release Issues from Plan` ワークフローを手動で実行すると、親タスクがIssueとして起票され、サブタスクはそのIssue内のチェックリストとして自動的に記述されます。
+
+
 ## 開発サイクル
 
 ### Step 1: 【構築】プロジェクト初期化

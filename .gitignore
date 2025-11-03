@@ -16,3 +16,7 @@
 
 # Firebase
 app/google-services.json
+
+# Keystore
+/keystore.properties
+*.jks

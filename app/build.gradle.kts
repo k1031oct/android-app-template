@@ -1,43 +1,32 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
+@Suppress("DSL_SCOPE_VIOLATION") // TODO: Remove once KTIJ-19369 is fixed
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.gms.google-services")
-    id("com.google.firebase.crashlytics")
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.firebase.appdistribution)
 }
 
 android {
-    namespace = "com.gws.auto.for.android"
-    compileSdk = 36
+    namespace = "com.example.apptemplate" // This will be replaced by the init.sh script
+    compileSdk = 34
 
     // --- Robust Signing Config ---
-    // This logic ensures that signing configs are only set up when the necessary
-    // information is present. This prevents errors during debug builds in a clean CI environment.
-
-    // 1. Prepare a properties object to hold signing information.
     val signingProperties = Properties()
     val keystorePropertiesFile = rootProject.file("keystore.properties")
     if (keystorePropertiesFile.exists()) {
         keystorePropertiesFile.inputStream().use { signingProperties.load(it) }
     }
-
-    // 2. In a CI environment, override with environment variables if they exist.
-    // These are provided by the release.yml workflow, matching the secrets in MANUAL_SETUP.md.
     System.getenv("SIGNING_KEY_FILE")?.let { signingProperties.setProperty("storeFile", it) }
     System.getenv("KEY_STORE_PASSWORD")?.let { signingProperties.setProperty("storePassword", it) }
     System.getenv("KEY_ALIAS")?.let { signingProperties.setProperty("keyAlias", it) }
     System.getenv("KEY_PASSWORD")?.let { signingProperties.setProperty("keyPassword", it) }
 
     signingConfigs {
-        // 3. Only create the 'release' signing config if all necessary properties are available.
-        if (signingProperties.getProperty("storeFile") != null &&
-            signingProperties.getProperty("storePassword") != null &&
-            signingProperties.getProperty("keyAlias") != null &&
-            signingProperties.getProperty("keyPassword") != null) {
-
+        if (signingProperties.getProperty("storeFile") != null) {
             create("release") {
                 storeFile = file(signingProperties.getProperty("storeFile"))
                 storePassword = signingProperties.getProperty("storePassword")
@@ -48,9 +37,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.gws.auto.for.android"
+        applicationId = "com.example.apptemplate" // This will be replaced by the init.sh script
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
@@ -63,32 +52,37 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            // 4. Assign the signing config only if it was successfully created.
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release")
+        }
+        debug {
+            applicationIdSuffix = ".debug"
+            firebaseAppDistribution {
+                appId = System.getenv("FIREBASE_APP_ID") ?: ""
+                token = System.getenv("FIREBASE_TOKEN") ?: ""
+                groups = "testers"
+            }
         }
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_1_8)
-        }
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
     buildFeatures {
         compose = true
+        viewBinding = true
     }
+
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
+        kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
     }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -97,25 +91,35 @@ android {
 }
 
 dependencies {
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics)
 
-    // implementation(platform("com.google.firebase:firebase-bom:34.5.0"))
-    implementation("com.google.firebase:firebase-analytics-ktx:22.5.0")
-    implementation("com.google.firebase:firebase-crashlytics-ktx:19.4.4")
+    // AndroidX & Google - Core & UI
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.splashscreen)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.constraintlayout)
 
-    implementation("androidx.core:core-ktx:1.17.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
-    implementation("androidx.activity:activity-compose:1.11.0")
-    implementation(platform("androidx.compose:compose-bom:2025.10.01"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.3.0")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2025.10.01"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    // AndroidX - Navigation & WorkManager
+    implementation(libs.bundles.navigation)
+    implementation(libs.androidx.work.runtime.ktx)
+
+    // Testing
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.ext.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
 }
-

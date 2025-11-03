@@ -1,4 +1,4 @@
-name: Create Initial Issues
+name: Create Initial Setup Files and Issues
 
 on:
   push:
@@ -6,20 +6,65 @@ on:
       - main
 
 jobs:
-  create-issues:
+  create-files-and-issues:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Create issues from MANUAL_SETUP.md
-        uses: actions/github-script@v6
+      - name: Create DEVELOPMENT_PLAN.md
+        run: |
+          if [ ! -f DEVELOPMENT_PLAN.md ]; then
+            echo "# Development Plan" > DEVELOPMENT_PLAN.md
+            echo "" >> DEVELOPMENT_PLAN.md
+            echo "This document outlines the development plan for this project." >> DEVELOPMENT_PLAN.md
+          fi
+
+      - name: Create RELEASE_PLAN.md
+        run: |
+          if [ ! -f RELEASE_PLAN.md ]; then
+            echo "# Release Plan" > RELEASE_PLAN.md
+            echo "" >> RELEASE_PLAN.md
+            echo "This document outlines the release plan for this project." >> RELEASE_PLAN.md
+          fi
+
+      - name: Create issues for initial setup
+        uses: actions/github-script@v7
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           script: |
             const fs = require('fs');
+
+            // Create issues for markdown file updates
+            const markdownFiles = ['DEVELOPMENT_PLAN.md', 'RELEASE_PLAN.md'];
+            for (const file of markdownFiles) {
+              const title = `Update ${file}`;
+              const body = `Please update the content of ${file}.`;
+
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                labels: 'initial-setup'
+              });
+
+              const issueExists = issues.some(issue => issue.title === title);
+
+              if (!issueExists) {
+                await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: title,
+                  body: body,
+                  labels: ['initial-setup']
+                });
+              }
+            }
+
+            // Create issues from MANUAL_SETUP.md
             const manual = fs.readFileSync('MANUAL_SETUP.md', 'utf8');
-            const lines = manual.split('\n');
+            const lines = manual.split('
+');
 
             let currentSection = '';
             for (const line of lines) {
@@ -27,14 +72,15 @@ jobs:
                 currentSection = line.substring(3);
               } else if (line.startsWith('- [ ] ')) {
                 const title = line.substring(6);
-                const body = `This task is part of the **${currentSection}** setup.\n\nPlease refer to the [MANUAL_SETUP.md](MANUAL_SETUP.md) file for more details.`;
+                const body = `This task is part of the **${currentSection}** setup.
 
-                // Check if an issue with the same title already exists
+Please refer to the [MANUAL_SETUP.md](MANUAL_SETUP.md) file for more details.`;
+
                 const { data: issues } = await github.rest.issues.listForRepo({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   state: 'open',
-                  labels: 'initial-setup' // Add a label to identify these issues
+                  labels: 'initial-setup'
                 });
 
                 const issueExists = issues.some(issue => issue.title === title);
@@ -50,4 +96,3 @@ jobs:
                 }
               }
             }
-
